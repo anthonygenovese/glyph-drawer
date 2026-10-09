@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Glyphs</title>
+<style>
+  :root {
+    --bg: #f6f5f2;
+    --ink: #1c1b19;
+    --muted: #8a847b;
+    --line: #e4e0d8;
+    --tile: #fff;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.4 "Segoe UI", system-ui, sans-serif; }
+  header {
+    position: sticky; top: 0; z-index: 5;
+    background: rgba(246,245,242,.94);
+    padding: 20px 24px 12px;
+  }
+  .row { display: flex; gap: 12px; align-items: center; }
+  input {
+    flex: 1; border: 0; border-bottom: 1px solid var(--line);
+    background: transparent; color: var(--ink);
+    padding: 8px 0; font: inherit; font-size: 16px;
+  }
+  input:focus { outline: none; border-color: var(--ink); }
+  input::placeholder { color: var(--muted); }
+  .chips { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 14px; }
+  .chip {
+    background: none; border: 0; padding: 0;
+    color: var(--muted); cursor: pointer; font: inherit; font-size: 13px;
+  }
+  .chip.on { color: var(--ink); }
+  main { padding: 8px 24px 72px; max-width: 920px; }
+  section { margin: 22px 0; }
+  h2 { margin: 0 0 10px; font-size: 12px; font-weight: 500; color: var(--muted); letter-spacing: .04em; }
+  .grid { display: flex; flex-wrap: wrap; gap: 4px; }
+  button.glyph {
+    width: 48px; height: 48px;
+    background: var(--tile); color: var(--ink);
+    border: 1px solid var(--line); border-radius: 6px;
+    font-size: 20px; cursor: pointer;
+  }
+  button.glyph:hover { border-color: var(--ink); }
+  button.glyph.copied { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .pack { display: flex; gap: 8px; flex-wrap: wrap; }
+  .pack button {
+    background: none; border: 1px solid var(--line); border-radius: 6px;
+    padding: 7px 10px; cursor: pointer; font: inherit; font-size: 13px; color: var(--ink);
+  }
+  .pack button:hover { border-color: var(--ink); }
+  .toast {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+    background: var(--ink); color: #fff;
+    padding: 8px 14px; border-radius: 999px; font-size: 13px;
+    opacity: 0; pointer-events: none;
+  }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+<header>
+  <div class="row">
+    <input id="q" type="search" placeholder="Search" autofocus />
+  </div>
+  <div class="chips" id="chips"></div>
+</header>
+<main id="main"></main>
+<div class="toast" id="toast">Copied</div>
+<script>
+const GROUPS = [
+  { name: "Box", items: "─│┌┐└┘├┤┬┴┼═║╔╗╚╝╠╣╦╩╬╭╮╯╰╱╲╳" },
+  { name: "Blocks", items: "█▓▒░▀▄▌▐■□▪▫▬▂▃▅▆▇" },
+  { name: "Arrows", items: "←→↑↓↔↕↖↗↘↙⇐⇒⇑⇓⇔⬅➡⬆⬇↺↻⏎" },
+  { name: "Shapes", items: "●○◉◎◐◑■□▲△▼▽◀▶◆◇♠♣♥♦✔✗" },
+  { name: "Stars", items: "★☆✦✧✶✷✸✹☀☁☂☃" },
+  { name: "Math", items: "±×÷≈≠≤≥∞√∑∏∫∂∆∇∈∉∩∪⊂⊃∧∨¬∴∵°π" },
+  { name: "Money", items: "$¢£¥€₩₹₽₺฿₫₴₦" },
+  { name: "Marks", items: "•…—–«»“”‘’†‡§¶©®™°¡¿" },
+  { name: "Greek", items: "ΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣΤΥΦΧΨΩαβγδεζηθικλμνξοπρστυφχψω" },
+  { name: "Fractions", items: "½⅓⅔¼¾⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞" }
+];
+const PACKS = [
+  { name: "Frame", text: "┌─┐\n│ │\n└─┘" },
+  { name: "Double", text: "╔═╗\n║ ║\n╚═╝" },
+  { name: "Shade", text: "░▒▓█" },
+  { name: "Arrows", text: "← ↑ → ↓" }
+];
+const chips = document.getElementById("chips");
+const main = document.getElementById("main");
+const q = document.getElementById("q");
+const toast = document.getElementById("toast");
+let active = "All";
+
+function copy(text, el) {
+  navigator.clipboard.writeText(text).then(() => {
+    toast.textContent = "Copied";
+    toast.classList.add("show");
+    if (el) { el.classList.add("copied"); setTimeout(() => el.classList.remove("copied"), 350); }
+    setTimeout(() => toast.classList.remove("show"), 700);
+  });
+}
+function render() {
+  chips.innerHTML = "";
+  ["All", ...GROUPS.map(g => g.name)].forEach(n => {
+    const b = document.createElement("button");
+    b.className = "chip" + (n === active ? " on" : "");
+    b.textContent = n;
+    b.onclick = () => { active = n; render(); };
+    chips.appendChild(b);
+  });
+  const query = q.value.trim().toLowerCase();
+  main.innerHTML = "";
+  const packRow = document.createElement("section");
+  packRow.innerHTML = "<h2>Packs</h2>";
+  const pack = document.createElement("div");
+  pack.className = "pack";
+  PACKS.forEach(p => {
+    const b = document.createElement("button");
+    b.textContent = p.name;
+    b.onclick = () => copy(p.text, b);
+    pack.appendChild(b);
+  });
+  packRow.appendChild(pack);
+  main.appendChild(packRow);
+  GROUPS.filter(g => active === "All" || g.name === active).forEach(g => {
+    if (query && !g.name.toLowerCase().includes(query)) return;
+    const sec = document.createElement("section");
+    sec.innerHTML = "<h2>" + g.name + "</h2>";
+    const grid = document.createElement("div");
+    grid.className = "grid";
+    [...new Set([...g.items])].filter(ch => ch.trim()).forEach(ch => {
+      const b = document.createElement("button");
+      b.className = "glyph";
+      b.textContent = ch;
+      b.onclick = () => copy(ch, b);
+      grid.appendChild(b);
+    });
+    sec.appendChild(grid);
+    main.appendChild(sec);
+  });
+}
+q.addEventListener("input", render);
+render();
+</script>
+</body>
+</html>
